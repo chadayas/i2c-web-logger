@@ -1,8 +1,8 @@
 menu "Wifi Credentials"
 config "WIFI_NAME"
-	string "Verizon_NM3HXK"
+	string "wifi_name"
 	default "myssid"
 config "WIFI_PW"
-	string "con3-jag-local"
+	string "wifi_password"
 	default "mypass"
 endmenu

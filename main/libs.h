@@ -15,10 +15,26 @@
 #include<nvs_flash.h>
 #include<iostream>
 
+#define TAG "wifi"
+
+#define WIFI_AUTHMODE WIFI_AUTH_WPA2_PSK
+
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT BIT1
+
 class WIFIService{
 	public:
 		WIFIService();
 		~WIFIService();
+	public:
+		const int WIFI_RETRY_ATTEMPT = 3;
+		int wifi_retry_count = 0;
+
+		esp_netif_t *tutorial_netif = NULL;
+		esp_event_handler_instance_t ip_event_handler;
+		esp_event_handler_instance_t wifi_event_handler;
+
+		EventGroupHandle_t wifi_event_group = NULL;
 	private:
 		esp_err_t wifi_init();
 		esp_err_t wifi_connect(char * wifi_ssid, char * wifi_pw);

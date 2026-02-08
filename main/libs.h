@@ -15,5 +15,13 @@
 #include<nvs_flash.h>
 #include<iostream>
 
-
-				
+class WIFIService{
+	public:
+		WIFIService();
+		~WIFIService();
+	private:
+		esp_err_t wifi_init();
+		esp_err_t wifi_connect(char * wifi_ssid, char * wifi_pw);
+		esp_err_t wifi_deinit();
+		esp_err_t wifi_disconnect();
+};			

@@ -1,21 +1,25 @@
 #include<libs.h>
 
+//#define CONFIG_WIFI_NAME WIFI_NAME
+//#define CONFIG_WIFI_PW WIFI_PW
+WIFIService::wifi_init()	
 
-void start(){
-	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-	httpd_handle_t server = NULL;
 
-	if (httpd_start(&server, &config) == ESP_OK){
-		std::cout << "Server created" << std::endl;
-		return;
-	} else{
-		auto res = httpd_start(&server, &config);
-		std::cout << res << std::endl;
-   } 
-	
+
+
+WIFIService::WIFIService(){
+	wifi_init();
+	wifi_connect();
+}
+
+WIFIService::~WIFIService(){
+	wifi_deinit();
+	wifi_disconnect();
 }
 
 extern "C" void app_main(void){
-	
-	start();	
+	wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();		
+	nvs_flash_init();	
+	auto res = esp_wifi_init(&config);
+	std::cout << res << std::endl;
 }

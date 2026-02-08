@@ -1,20 +1,19 @@
 #include<libs.h>
-#include<iostream>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<unistd.h>
 
-void debug(int res){
-	if(res < 0){
-		std::cout << "Problem with connection"<<std::endl;
-		std::cout << 
-	}
+
+auto start(){
+	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+	httpd_handle_t server = NULL;
+
+	if (httpd_start(&server, &config) == ESP_OK){
+		std::cout << "Server created" << std::endl;
+	}else{
+		auto res = httpd_start(&server, &config);
+		std::cout << res << std::endl;
+   } 
 }
-
 
 extern "C" void app_main(void){
 	
-	int fd = socket(AF_INET, SOCK_STREAM, 0);
-	int bd = bind()
-
+	start();	
 }

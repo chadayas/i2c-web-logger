@@ -8,10 +8,8 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
+#include<esp_http_server.h>
 #include<iostream>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<unistd.h>
 
 
 				

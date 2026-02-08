@@ -3,7 +3,7 @@
 //#define CONFIG_WIFI_NAME WIFI_NAME
 //#define CONFIG_WIFI_PW WIFI_PW
 
-WIFIService::wifi_init(){
+WIFIService::init(){
      auto ret = nvs_flash_init();
      if (ret != ESP_OK){
 		ESP_ERROR_CHECK(nvs_flash_erase());
@@ -46,8 +46,8 @@ WIFIService::wifi_init(){
 }	
 
 
-WIFIService::wifi_connect(char *wifi_ssid, char *wifi_pw){
-    wifi_config_t wifi_config = {};
+WIFIService::connect(char *wifi_ssid, char *wifi_pw){
+    wifi_config_t wifi_config{};
 
     strncpy((char*)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
     strncpy((char*)wifi_config.sta.password, wifi_pw, sizeof(wifi_config.sta.password));
@@ -58,7 +58,7 @@ WIFIService::wifi_connect(char *wifi_ssid, char *wifi_pw){
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
-    ESP_LOGI(TAG, "Connecting to Wi-Fi network: %s", wifi_config.sta.ssid);
+    ESP_LOGI(TAG, "Connecting to Wi-Fi network: " + std::string(wifi_config.sta.ssid));
     ESP_ERROR_CHECK(esp_wifi_start());
 
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
@@ -76,20 +76,43 @@ WIFIService::wifi_connect(char *wifi_ssid, char *wifi_pw){
     return ESP_FAIL;
 }
 
-WIFIService::wifi_deinit(){}
+WIFIService::deinit(){
+    esp_err_t ret = esp_wifi_stop();
+    if (ret == ESP_ERR_WIFI_NOT_INIT) {
+        ESP_LOGE(TAG, "Wi-Fi stack not initialized");
+        return ret;
+    }
 
-WIFIService::wifi_disconnect(){}
+    ESP_ERROR_CHECK(esp_wifi_deinit());
+    ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(tutorial_netif));
+    esp_netif_destroy(tutorial_netif);
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, ESP_EVENT_ANY_ID, ip_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler));
+
+    return ESP_OK;
+}
+
+WIFIService::disconnect(){
+    if (s_wifi_event_group) {
+        vEventGroupDelete(wifi_event_group);
+    }
+
+    return esp_wifi_disconnect();
+}
 
 WIFIService::WIFIService(){
-	wifi_init();
-	wifi_connect();
+	init();
+	connect(char *wifi_ssid, char *wifi_pw);
 }
 
 WIFIService::~WIFIService(){
-	wifi_deinit();
-	wifi_disconnect();
+	deinit();
+	disconnect();
 }
 
 extern "C" void app_main(void){
-	WIFIService wifi_ser;
+	WIFIService wifi;
+	wifi.init();
+	wifi.connect(CONFIG_WIFI_NAME, CONFIG_WIFI_PW);
 }

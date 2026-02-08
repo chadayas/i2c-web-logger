@@ -13,6 +13,7 @@
 #include<esp_event.h>
 #include<esp_netif.h>
 #include<nvs_flash.h>
+#include<string>
 #include<iostream>
 
 #define TAG "wifi"
@@ -36,8 +37,8 @@ class WIFIService{
 
 		EventGroupHandle_t wifi_event_group = NULL;
 	private:
-		esp_err_t wifi_init();
-		esp_err_t wifi_connect(char * wifi_ssid, char * wifi_pw);
-		esp_err_t wifi_deinit();
-		esp_err_t wifi_disconnect();
+		esp_err_t init();
+		esp_err_t connect(char * wifi_ssid, char * wifi_pw);
+		esp_err_t deinit();
+		esp_err_t disconnect();
 };			

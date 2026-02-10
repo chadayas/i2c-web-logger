@@ -185,12 +185,37 @@ Httpserver::~Httpserver(){
 	deinit();
 }
 
-
-
 extern "C" void app_main(void){
 	WifiService wifi; // connects to the wifi.
-	Httpserver server;
+	
+	size_t total{}, used{};
 
+	ESP_LOGI(TAG, "Initializing SPIFFS");
+
+	esp_vfs_spiffs_conf_t cfg = {
+  		.base_path = "/spiffs",
+  		.partition_label = NULL,
+  		.max_files = 5,
+  		.format_if_mount_failed = true
+		};
+ 
+	esp_err_t ret = esp_vfs_spiffs_register(&cfg);
+	
+	if (ret != ESP_OK) {
+	    if (ret == ESP_FAIL) {
+        	ESP_LOGE(TAG, "Failed to mount or format filesystem");
+    	  } else if (ret == ESP_ERR_NOT_FOUND) {
+        	ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+          } else {
+   	     	ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+    	}
+    	  return;
+    	}
+	
+	ret = esp_spiffs_info(conf.partition_label)
+	
+
+	Httpserver server;
 	while(true){
 		vTaskDelay(pdMS_TO_TICKS(1000));
 	}

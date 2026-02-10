@@ -189,4 +189,9 @@ Httpserver::~Httpserver(){
 
 extern "C" void app_main(void){
 	WifiService wifi; // connects to the wifi.
+	Httpserver server;
+
+	while(true){
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
 }

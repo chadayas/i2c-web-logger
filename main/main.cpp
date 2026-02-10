@@ -34,7 +34,7 @@ static void ip_event_cb(void *arg, esp_event_base_t event_base,
     }
 }
 
-WIFIService::init(){
+esp_err_t WIFIService::init(){
      auto ret = nvs_flash_init();
      if (ret != ESP_OK){
 		ESP_ERROR_CHECK(nvs_flash_erase());
@@ -66,7 +66,7 @@ WIFIService::init(){
         return ESP_FAIL;
     }
     
-    auto config = WIFI_INIT_CONFIG_DEFAULT();
+    wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&config));
    
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
@@ -74,14 +74,15 @@ WIFIService::init(){
 
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID,
 			    	&ip_event_cb, this, &ip_event_handler));
+    return ret;
 }	
 
 
-WIFIService::connect(char *wifi_ssid, char *wifi_pw){
+esp_err_t WIFIService::connect(){
     wifi_config_t wifi_config{};
 
-    strncpy((char*)wifi_config.sta.ssid, wifi_ssid, sizeof(wifi_config.sta.ssid));
-    strncpy((char*)wifi_config.sta.password, wifi_pw, sizeof(wifi_config.sta.password));
+    strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_NAME, sizeof(wifi_config.sta.ssid));
+    strncpy((char*)wifi_config.sta.password, CONFIG_WIFI_PW, sizeof(wifi_config.sta.password));
 
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); // default is WIFI_PS_MIN_MODEM
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM)); // default is WIFI_STORAGE_FLASH
@@ -89,7 +90,7 @@ WIFIService::connect(char *wifi_ssid, char *wifi_pw){
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
 
-    ESP_LOGI(TAG, "Connecting to Wi-Fi network: " + std::string(wifi_config.sta.ssid));
+    ESP_LOGI(TAG, "Connecting to Wi-Fi network: %s",wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_start());
 
     EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
@@ -107,7 +108,7 @@ WIFIService::connect(char *wifi_ssid, char *wifi_pw){
     return ESP_FAIL;
 }
 
-WIFIService::deinit(){
+esp_err_t WIFIService::deinit(){
     esp_err_t ret = esp_wifi_stop();
     if (ret == ESP_ERR_WIFI_NOT_INIT) {
         ESP_LOGE(TAG, "Wi-Fi stack not initialized");
@@ -124,7 +125,7 @@ WIFIService::deinit(){
     return ESP_OK;
 }
 
-WIFIService::disconnect(){
+esp_err_t WIFIService::disconnect(){
     if (wifi_event_group) {
         vEventGroupDelete(wifi_event_group);
     }
@@ -134,7 +135,7 @@ WIFIService::disconnect(){
 
 WIFIService::WIFIService(){
 	init();
-	connect(char *wifi_ssid, char *wifi_pw);
+	connect();
 }
 
 WIFIService::~WIFIService(){
@@ -144,6 +145,4 @@ WIFIService::~WIFIService(){
 
 extern "C" void app_main(void){
 	WIFIService wifi;
-	wifi.init();
-	wifi.connect(CONFIG_WIFI_NAME, CONFIG_WIFI_PW);
 }

@@ -51,8 +51,9 @@ class Httpserver{
 		Httpserver();
 		~Httpserver();
 	public:
-		esp_err_t init();
-		esp_err_t deinit();
+		httpd_handle_t init();
+		void deinit();
+		esp_err_t register_route(const httpd_uri_t *uri_cfg);	
 	private:
 		httpd_config_t cfg = HTTP_DEFAULT_CONFIG();
 		httpd_handle_t svr = NULL;

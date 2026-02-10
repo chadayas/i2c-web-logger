@@ -139,14 +139,25 @@ WifiService::~WifiService(){
 	disconnect();
 }
 
-esp_err_t Httpserver::init(){
-
+httpd_config_t Httpserver::init(){
+	if (httpd_start(&svr, &cfg) == ESP_OK){
+		ESP_LOGI(TAG, "HTTP server started");	
+		return svr; 
+	} else{
+		ESP_LOGE(TAG, "Unable to start server");
+		return NULL;	
+	}
 }
 
-esp_err_t Httpserver::deinit(){
-
+void Httpserver::deinit(){
+	if(server != NULL){
+		httpd_stop(svr);
+	}
 }
 
+esp_err_t Httpserver::register_route(const httpd_uri_t *uri_cfg){
+    return httpd_register_uri_handler(svr, uri_cfg);
+}
 
 Httpserver::Httpserver(){
 	init();

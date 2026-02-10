@@ -139,18 +139,36 @@ WifiService::~WifiService(){
 	disconnect();
 }
 
-httpd_config_t Httpserver::init(){
+static esp_err_t root_get_handler(httpd_req_t *req) {
+    const char *html = "<html><body>"
+                       "<h1>ESP32 Sensor Logger</h1>"
+                       "<p>Monitoring I2C and GPIO sensor data.</p>"
+                       "</body></html>";
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, html, strlen(html));
+}
+
+httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
-		ESP_LOGI(TAG, "HTTP server started");	
-		return svr; 
+		ESP_LOGI(TAG, "HTTP server started");
+
+		httpd_uri_t root = {
+		    .uri = "/",
+		    .method = HTTP_GET,
+		    .handler = root_get_handler,
+		    .user_ctx = NULL
+		};
+		register_route(&root);
+
+		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");
-		return NULL;	
+		return NULL;
 	}
 }
 
 void Httpserver::deinit(){
-	if(server != NULL){
+	if(svr != NULL){
 		httpd_stop(svr);
 	}
 }

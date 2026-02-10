@@ -3,13 +3,44 @@
 //#define CONFIG_WIFI_NAME WIFI_NAME
 //#define CONFIG_WIFI_PW WIFI_PW
 
+static void wifi_event_cb(void *arg, esp_event_base_t event_base,
+                          int32_t event_id, void *event_data) {
+    WIFIService *svc = (WIFIService *)arg;
+
+    if (event_id == WIFI_EVENT_STA_START) {
+        ESP_LOGI(TAG, "WiFi started, connecting...");
+        esp_wifi_connect();
+    } else if (event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (svc->wifi_retry_count < svc->WIFI_RETRY_ATTEMPT) {
+            ESP_LOGW(TAG, "Disconnected, retrying (%d/%d)", svc->wifi_retry_count + 1, svc->WIFI_RETRY_ATTEMPT);
+            esp_wifi_connect();
+            svc->wifi_retry_count++;
+        } else {
+            ESP_LOGE(TAG, "Failed to connect after %d attempts", svc->WIFI_RETRY_ATTEMPT);
+            xEventGroupSetBits(svc->wifi_event_group, WIFI_FAIL_BIT);
+        }
+    }
+}
+
+static void ip_event_cb(void *arg, esp_event_base_t event_base,
+                        int32_t event_id, void *event_data) {
+    WIFIService *svc = (WIFIService *)arg;
+
+    if (event_id == IP_EVENT_STA_GOT_IP) {
+        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+        ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        svc->wifi_retry_count = 0;
+        xEventGroupSetBits(svc->wifi_event_group, WIFI_CONNECTED_BIT);
+    }
+}
+
 WIFIService::init(){
      auto ret = nvs_flash_init();
      if (ret != ESP_OK){
 		ESP_ERROR_CHECK(nvs_flash_erase());
 		ret = nvs_flash_init();
 	}
-     wifi_event_handler = xEventGroupCreate();
+     wifi_event_group = xEventGroupCreate();
 
     ret = esp_netif_init();
     if (ret != ESP_OK) {
@@ -38,11 +69,11 @@ WIFIService::init(){
     auto config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&config));
    
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID
-			    	&wifi_event_cb, NULL, &wifi_event_handler));
-    
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID
-			    	&ip_event_cb, NULL, &ip_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+			    	&wifi_event_cb, this, &wifi_event_handler));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID,
+			    	&ip_event_cb, this, &ip_event_handler));
 }	
 
 
@@ -61,7 +92,7 @@ WIFIService::connect(char *wifi_ssid, char *wifi_pw){
     ESP_LOGI(TAG, "Connecting to Wi-Fi network: " + std::string(wifi_config.sta.ssid));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+    EventBits_t bits = xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
         pdFALSE, pdFALSE, portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
@@ -94,7 +125,7 @@ WIFIService::deinit(){
 }
 
 WIFIService::disconnect(){
-    if (s_wifi_event_group) {
+    if (wifi_event_group) {
         vEventGroupDelete(wifi_event_group);
     }
 

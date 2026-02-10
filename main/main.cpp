@@ -1,11 +1,9 @@
 #include<libs.h>
 
-//#define CONFIG_WIFI_NAME WIFI_NAME
-//#define CONFIG_WIFI_PW WIFI_PW
 
 static void wifi_event_cb(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data) {
-    WIFIService *svc = (WIFIService *)arg;
+    WifiService *svc = (WifiService *)arg;
 
     if (event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "WiFi started, connecting...");
@@ -24,7 +22,7 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base,
 
 static void ip_event_cb(void *arg, esp_event_base_t event_base,
                         int32_t event_id, void *event_data) {
-    WIFIService *svc = (WIFIService *)arg;
+    WifiService *svc = (WifiService *)arg;
 
     if (event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
@@ -34,7 +32,7 @@ static void ip_event_cb(void *arg, esp_event_base_t event_base,
     }
 }
 
-esp_err_t WIFIService::init(){
+esp_err_t WifiService::init(){
      auto ret = nvs_flash_init();
      if (ret != ESP_OK){
 		ESP_ERROR_CHECK(nvs_flash_erase());
@@ -66,9 +64,7 @@ esp_err_t WIFIService::init(){
         return ESP_FAIL;
     }
     
-    wifi_init_config_t config = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&config));
-   
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
 			    	&wifi_event_cb, this, &wifi_event_handler));
 
@@ -78,7 +74,7 @@ esp_err_t WIFIService::init(){
 }	
 
 
-esp_err_t WIFIService::connect(){
+esp_err_t WifiService::connect(){
     wifi_config_t wifi_config{};
 
     strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_NAME, sizeof(wifi_config.sta.ssid));
@@ -108,7 +104,7 @@ esp_err_t WIFIService::connect(){
     return ESP_FAIL;
 }
 
-esp_err_t WIFIService::deinit(){
+esp_err_t WifiService::deinit(){
     esp_err_t ret = esp_wifi_stop();
     if (ret == ESP_ERR_WIFI_NOT_INIT) {
         ESP_LOGE(TAG, "Wi-Fi stack not initialized");
@@ -125,7 +121,7 @@ esp_err_t WIFIService::deinit(){
     return ESP_OK;
 }
 
-esp_err_t WIFIService::disconnect(){
+esp_err_t WifiService::disconnect(){
     if (wifi_event_group) {
         vEventGroupDelete(wifi_event_group);
     }
@@ -133,16 +129,35 @@ esp_err_t WIFIService::disconnect(){
     return esp_wifi_disconnect();
 }
 
-WIFIService::WIFIService(){
+WifiService::WifiService(){
 	init();
 	connect();
 }
 
-WIFIService::~WIFIService(){
+WifiService::~WifiService(){
 	deinit();
 	disconnect();
 }
 
+esp_err_t Httpserver::init(){
+
+}
+
+esp_err_t Httpserver::deinit(){
+
+}
+
+
+Httpserver::Httpserver(){
+	init();
+}
+
+Httpserver::~Httpserver(){
+	deinit();
+}
+
+
+
 extern "C" void app_main(void){
-	WIFIService wifi;
+	WifiService wifi; // connects to the wifi.
 }

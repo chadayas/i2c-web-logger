@@ -24,10 +24,10 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-class WIFIService{
+class WifiService{
 	public:
-		WIFIService();
-		~WIFIService();
+		WifiService();
+		~WifiService();
 	public:
 		esp_err_t init();
 		esp_err_t connect();
@@ -42,4 +42,19 @@ class WIFIService{
 		esp_event_handler_instance_t wifi_event_handler;
 
 		EventGroupHandle_t wifi_event_group = NULL;
-};			
+	private:
+		wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+};
+
+class Httpserver{
+	public:
+		Httpserver();
+		~Httpserver();
+	public:
+		esp_err_t init();
+		esp_err_t deinit();
+	private:
+		httpd_config_t cfg = HTTP_DEFAULT_CONFIG();
+		httpd_handle_t svr = NULL;
+
+};

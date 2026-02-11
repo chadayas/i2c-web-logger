@@ -1,5 +1,16 @@
-<html><body>
-                       <h1>ESP32 Sensor Logger</h1>
-                       <p>Monitoring I2C and GPIO sensor data.</p>
-
-</body></html>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Breathalyzer</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>ESP32 Breathalyzer</h1>
+    <p>Real-time BAC readings from MQ-3 ethanol sensor.</p>
+    <canvas id="graph" width="600" height="300"></canvas>
+    <div id="reading">BAC: --</div>
+    <script src="/graph.js"></script>
+</body>
+</html>

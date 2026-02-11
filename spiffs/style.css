@@ -1,0 +1,27 @@
+body {
+    background-color: tan;
+    color: black;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+p {
+    margin-top: 0;
+}
+
+#graph {
+    background-color: white;
+    border: 1px solid black;
+    display: block;
+    margin: 20px 0;
+}
+
+#reading {
+    font-size: 24px;
+    font-weight: bold;
+}

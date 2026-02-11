@@ -25,6 +25,13 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
+namespace handlers {
+	esp_err_t root(httpd_req_t *req);
+	esp_err_t css(httpd_req_t *req);
+	esp_err_t js(httpd_req_t *req);
+}
+
+
 class WifiService{
 	public:
 		WifiService();

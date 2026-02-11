@@ -139,7 +139,7 @@ WifiService::~WifiService(){
 	disconnect();
 }
 
-static esp_err_t root_get_handler(httpd_req_t *req) {
+esp_err_t handlers::root(httpd_req_t *req) {
     std::ifstream file("/spiffs/index.html");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open HTML file");
@@ -151,18 +151,59 @@ static esp_err_t root_get_handler(httpd_req_t *req) {
     return httpd_resp_send(req, html.c_str(), html.length());
 }
 
+esp_err_t handlers::css(httpd_req_t *req) {
+    std::ifstream file("/spiffs/style.css");
+    if (!file.is_open()) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open css file");
+        return ESP_FAIL;
+    }
+    std::string css((std::istreambuf_iterator<char>(file)),
+                      std::istreambuf_iterator<char>());
+    httpd_resp_set_type(req, "text/css");
+    return httpd_resp_send(req, css.c_str(), css.length());
+}
+
+
+esp_err_t handlers::js(httpd_req_t *req) {
+    std::ifstream file("/spiffs/graph.js");
+    if (!file.is_open()) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open javascript file");
+        return ESP_FAIL;
+    }
+    std::string js((std::istreambuf_iterator<char>(file)),
+                      std::istreambuf_iterator<char>());
+    httpd_resp_set_type(req, "text/javascript");
+    return httpd_resp_send(req, js.c_str(), js.length());
+}
+
+
 httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
 		ESP_LOGI(TAG, "HTTP server started");
 
-		httpd_uri_t root = {
+		httpd_uri_t root_s = {
 		    .uri = "/",
 		    .method = HTTP_GET,
-		    .handler = root_get_handler,
+		    .handler = handlers::root,
 		    .user_ctx = NULL
 		};
-		register_route(&root);
+		httpd_uri_t css_s = {
+		    .uri = "/style.css",
+		    .method = HTTP_GET,
+		    .handler = handlers::css,
+		    .user_ctx = NULL
+		};
 
+		httpd_uri_t js_s = {
+		    .uri = "/graph.js",
+		    .method = HTTP_GET,
+		    .handler = handlers::js,
+		    .user_ctx = NULL
+		};
+	
+		register_route(&root_s);
+		register_route(&css_s);
+		register_route(&js_s);
 		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");

@@ -1,5 +1,5 @@
 #include<libs.h>
-
+#include<fstream>
 
 static void wifi_event_cb(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data) {
@@ -140,12 +140,15 @@ WifiService::~WifiService(){
 }
 
 static esp_err_t root_get_handler(httpd_req_t *req) {
-    const char *html = "<html><body>"
-                       "<h1>ESP32 Sensor Logger</h1>"
-                       "<p>Monitoring I2C and GPIO sensor data.</p>"
-                       "</body></html>";
+    std::ifstream file("/spiffs/index.html");
+    if (!file.is_open()) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open HTML file");
+        return ESP_FAIL;
+    }
+    std::string html((std::istreambuf_iterator<char>(file)),
+                      std::istreambuf_iterator<char>());
     httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, html, strlen(html));
+    return httpd_resp_send(req, html.c_str(), html.length());
 }
 
 httpd_handle_t Httpserver::init(){
@@ -212,11 +215,18 @@ extern "C" void app_main(void){
     	  return;
     	}
 	
-	ret = esp_spiffs_info(conf.partition_label)
-	
+     ret = esp_spiffs_info(cfg.partition_label, &total, &used);
+     if (ret != ESP_OK) {
+         ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s). Formatting...", esp_err_to_name(ret));
+         esp_spiffs_format(cfg.partition_label);
+         return;
+     } else {
+         ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
+     }
 
-	Httpserver server;
-	while(true){
+     Httpserver server;
+     
+     while(true){
 		vTaskDelay(pdMS_TO_TICKS(1000));
 	}
 }

@@ -16,6 +16,7 @@
 #include "esp_netif.h"
 #include "nvs_flash.h"
 #include "esp_log.h"
+#include "esp_spiffs.h"
 
 #define TAG "wifi"
 

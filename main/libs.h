@@ -36,7 +36,8 @@ namespace handlers {
 	esp_err_t sensor_data(httpd_req_t *req);
 }
 
-void init_adc1();
+
+bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle);
 
 class WifiService{
 	public:

@@ -141,24 +141,36 @@ WifiService::~WifiService(){
 
 adc_oneshot_unit_handle_t adc1_handle;
 
-bool adc_calibration_init() 
+bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle){
+	adc_cali_handle_t handle = NULL;
+    	esp_err_t ret = ESP_FAIL;
+    	bool calibrated = false;
+	
+	if (!calibrated) {
+		ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
+		adc_cali_line_fitting_config_t cali_config = {
+			.unit_id = unit,
+			.atten = atten,
+			.bitwidth = ADC_BITWIDTH_DEFAULT,
+		};
+		ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
+		if (ret == ESP_OK) {
+			calibrated = true;
+		}
+	}
 
-void init_adc1(){
-    	adc_oneshot_unit_init_cfg_t init_cfg = {
-       		 .unit_id = ADC_UNIT_1,
-    	};
-    	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_cfg, &adc1_handle));
+	*out_handle = handle;
+	if (ret == ESP_OK) {
+		ESP_LOGI(TAG, "Calibration Success");
+	} else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
+		ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
+	} else {
+		ESP_LOGE(TAG, "Invalid arg or no memory");
+	}
 
-    	adc_oneshot_chan_cfg_t cfg = {
-       		 .atten = ADC_ATTEN_DB_12,
-        	.bitwidth = ADC_BITWIDTH_DEFAULT,
-    	};
-    	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &cfg));
+	return calibrated;
+} 
 
-    	adc_cali_handle_t adc1_cali_chan0_handle = NULL;
-    	bool do_calibration1_chan0 = adc_calibration_init(ADC_UNIT_1, ADC_CHANNEL_0, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
-
-}
 
 
 esp_err_t handlers::root(httpd_req_t *req) {
@@ -302,8 +314,23 @@ extern "C" void app_main(void){
          ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
      }
 
-     Httpserver server;
-     
+     	adc_oneshot_unit_init_cfg_t init_cfg = {
+       		 .unit_id = ADC_UNIT_1,
+    	};
+	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_cfg, &adc1_handle));
+
+    	adc_oneshot_chan_cfg_t cfg = {
+       		 .atten = ADC_ATTEN_DB_12,
+        	.bitwidth = ADC_BITWIDTH_DEFAULT,
+    	};
+    	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &cfg));
+
+    	adc_cali_handle_t adc1_cali_chan0_handle = NULL;
+    	
+	bool do_calibration1_chan0 = adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
+
+     	Httpserver server;
+	     
      while(true){
 		vTaskDelay(pdMS_TO_TICKS(1000));
 	}

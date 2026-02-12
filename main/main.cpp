@@ -211,10 +211,16 @@ esp_err_t handlers::js(httpd_req_t *req) {
 }
 
 esp_err_t handlers::sensor_data(httpd_req_t *req) {
-    // TODO: replace with real adc read when mq-3 arrives
-    float bac = 0.05;
-    char json[32];
-    snprintf(json, sizeof(json), "{\"bac\": %.4f}", bac);
+    int adc_raw = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
+
+    // convert raw ADC to voltage (mV), then to rough BAC estimate
+    float voltage = adc_raw * (3.3f / 4095.0f);
+    // TODO: calibrate with real MQ-3 data sheet curve
+    float bac = voltage / 33.0f;
+
+    char json[64];
+    snprintf(json, sizeof(json), "{\"bac\": %.4f, \"raw\": %d, \"mv\": %.0f}", bac, adc_raw, voltage * 1000);
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_send(req, json, strlen(json));
 }
@@ -319,11 +325,11 @@ extern "C" void app_main(void){
     	};
 	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_cfg, &adc1_handle));
 
-    	adc_oneshot_chan_cfg_t cfg = {
+    	adc_oneshot_chan_cfg_t adc_cfg = {
        		 .atten = ADC_ATTEN_DB_12,
         	.bitwidth = ADC_BITWIDTH_DEFAULT,
     	};
-    	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &cfg));
+    	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &adc_cfg));
 
     	adc_cali_handle_t adc1_cali_chan0_handle = NULL;
     	

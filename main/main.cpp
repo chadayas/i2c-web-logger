@@ -176,6 +176,14 @@ esp_err_t handlers::js(httpd_req_t *req) {
     return httpd_resp_send(req, js.c_str(), js.length());
 }
 
+esp_err_t handlers::sensor_data(httpd_req_t *req) {
+    // TODO: replace with real adc read when mq-3 arrives
+    float bac = 0.05;
+    char json[32];
+    snprintf(json, sizeof(json), "{\"bac\": %.4f}", bac);
+    httpd_resp_set_type(req, "application/json");
+    return httpd_resp_send(req, json, strlen(json));
+}
 
 httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
@@ -201,9 +209,17 @@ httpd_handle_t Httpserver::init(){
 		    .user_ctx = NULL
 		};
 	
+		httpd_uri_t sensor_data_s = {
+		    .uri = "/sensor",
+		    .method = HTTP_GET,
+		    .handler = handlers::sensor_data,
+		    .user_ctx = NULL
+		};
+	
 		register_route(&root_s);
 		register_route(&css_s);
 		register_route(&js_s);
+		register_route(&sensor_data_s);
 		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");
@@ -212,9 +228,8 @@ httpd_handle_t Httpserver::init(){
 }
 
 void Httpserver::deinit(){
-	if(svr != NULL){
+	if(svr != NULL)
 		httpd_stop(svr);
-	}
 }
 
 esp_err_t Httpserver::register_route(const httpd_uri_t *uri_cfg){

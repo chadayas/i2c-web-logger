@@ -139,6 +139,25 @@ WifiService::~WifiService(){
 	disconnect();
 }
 
+void init_adc1(){
+	adc_oneshot_unit_handle_t adc1_handle;
+    	adc_oneshot_unit_init_cfg_t init_config1 = {
+       		 .unit_id = ADC_UNIT_1,
+    	};
+    	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+
+    	adc_oneshot_chan_cfg_t config = {
+       		 .atten = EXAMPLE_ADC_ATTEN,
+        	.bitwidth = ADC_BITWIDTH_DEFAULT,
+    	};
+    	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &config));
+
+    	adc_cali_handle_t adc1_cali_chan0_handle = NULL;
+    	bool do_calibration1_chan0 = example_adc_calibration_init(ADC_UNIT_1, ADC_CHANNEL_0, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
+
+}
+
+
 esp_err_t handlers::root(httpd_req_t *req) {
     std::ifstream file("/spiffs/index.html");
     if (!file.is_open()) {

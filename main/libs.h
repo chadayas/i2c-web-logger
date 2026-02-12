@@ -17,8 +17,12 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 
-#define TAG "wifi"
+
+#define TAG "project"
 
 #define WIFI_AUTHMODE WIFI_AUTH_WPA2_PSK
 
@@ -32,6 +36,7 @@ namespace handlers {
 	esp_err_t sensor_data(httpd_req_t *req);
 }
 
+void init_adc1();
 
 class WifiService{
 	public:

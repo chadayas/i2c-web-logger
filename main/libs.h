@@ -34,6 +34,7 @@ namespace handlers {
 	esp_err_t css(httpd_req_t *req);
 	esp_err_t js(httpd_req_t *req);
 	esp_err_t sensor_data(httpd_req_t *req);
+	void websock(httpd_req_t *req, int fd);
 }
 
 

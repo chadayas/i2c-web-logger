@@ -225,6 +225,17 @@ esp_err_t handlers::sensor_data(httpd_req_t *req) {
     return httpd_resp_send(req, json, strlen(json));
 }
 
+void ws_async_send(httpd_handle_t *hd, int fd, auto data){
+		httpd_ws_frame_t ws_frame = {
+			.payload = (uint8_t*)data;
+			.len = strlen(data);
+			.type = HTTPD_WS_TYPE_TEXT;
+		};
+			
+		httpd_ws_send_frame_asynce(hd, fd, ws_frame);
+
+}
+
 httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
 		ESP_LOGI(TAG, "HTTP server started");
@@ -255,11 +266,20 @@ httpd_handle_t Httpserver::init(){
 		    .handler = handlers::sensor_data,
 		    .user_ctx = NULL
 		};
+		httpd_uri_t ws_s = {
+		    .uri = "/ws",
+		    .method = HTTP_GET,
+		    .handler = handlers::websock,
+		    .user_ctx = NULL,
+		    is_websocket = true,
+		    //ws_pre_handshake_cb = ws_auth_handler
+		};
 	
 		register_route(&root_s);
 		register_route(&css_s);
 		register_route(&js_s);
 		register_route(&sensor_data_s);
+		register_route(&wb_s);
 		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");

@@ -29,12 +29,14 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-namespace handlers {
+namespace Handlers {
 	esp_err_t root(httpd_req_t *req);
 	esp_err_t css(httpd_req_t *req);
 	esp_err_t js(httpd_req_t *req);
 	esp_err_t sensor_data(httpd_req_t *req);
-	void websock(httpd_req_t *req, int fd);
+	esp_err_t websock(httpd_req_t *req);	
+
+	void ws_async_send(void* arg);
 }
 
 
@@ -73,5 +75,4 @@ class Httpserver{
 	private:
 		httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
 		httpd_handle_t svr = NULL;
-
 };

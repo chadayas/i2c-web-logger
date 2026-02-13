@@ -1,6 +1,13 @@
 #include<libs.h>
 #include<fstream>
 
+struct ws_resp_arg {
+	httpd_handle_t hd;
+	int fd;
+	char data[64];
+};
+
+
 static void wifi_event_cb(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data) {
     WifiService *svc = (WifiService *)arg;
@@ -172,8 +179,20 @@ bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t 
 } 
 
 
+void Handlers::ws_async_send(void* arg){
+		auto *resp_arg = (ws_resp_arg *)arg;
+		httpd_ws_frame_t ws_frame{};
 
-esp_err_t handlers::root(httpd_req_t *req) {
+		ws_frame.payload = (uint8_t*)resp_arg->data;
+		ws_frame.len = strlen(resp_arg->data);
+		ws_frame.type = HTTPD_WS_TYPE_TEXT;
+
+		httpd_ws_send_frame_async(resp_arg->hd, resp_arg->fd, &ws_frame);
+		delete resp_arg;
+}
+
+
+esp_err_t Handlers::root(httpd_req_t *req) {
     std::ifstream file("/spiffs/index.html");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open HTML file");
@@ -185,7 +204,7 @@ esp_err_t handlers::root(httpd_req_t *req) {
     return httpd_resp_send(req, html.c_str(), html.length());
 }
 
-esp_err_t handlers::css(httpd_req_t *req) {
+esp_err_t Handlers::css(httpd_req_t *req) {
     std::ifstream file("/spiffs/style.css");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open css file");
@@ -198,7 +217,7 @@ esp_err_t handlers::css(httpd_req_t *req) {
 }
 
 
-esp_err_t handlers::js(httpd_req_t *req) {
+esp_err_t Handlers::js(httpd_req_t *req) {
     std::ifstream file("/spiffs/graph.js");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open javascript file");
@@ -210,7 +229,27 @@ esp_err_t handlers::js(httpd_req_t *req) {
     return httpd_resp_send(req, js.c_str(), js.length());
 }
 
-esp_err_t handlers::sensor_data(httpd_req_t *req) {
+esp_err_t Handlers::websock(httpd_req_t *req){
+    if (req->method == HTTP_GET) {
+        ESP_LOGI(TAG, "WebSocket client connected");
+        return ESP_OK;
+    }
+
+    // read sensor and send to client
+    int adc_raw = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
+    float voltage = adc_raw * (3.3f / 4095.0f);
+    float bac = voltage / 33.0f;
+
+    auto *resp_arg = new ws_resp_arg;
+    resp_arg->hd = req->handle;
+    resp_arg->fd = httpd_req_to_sockfd(req);
+    snprintf(resp_arg->data, sizeof(resp_arg->data), "{\"bac\": %.4f, \"raw\": %d, \"mv\": %.0f}", bac, adc_raw, voltage * 1000);
+
+    return httpd_queue_work(req->handle, Handlers::ws_async_send, resp_arg);
+}
+
+esp_err_t Handlers::sensor_data(httpd_req_t *req) {
     int adc_raw = 0;
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
 
@@ -225,16 +264,9 @@ esp_err_t handlers::sensor_data(httpd_req_t *req) {
     return httpd_resp_send(req, json, strlen(json));
 }
 
-void ws_async_send(httpd_handle_t *hd, int fd, auto data){
-		httpd_ws_frame_t ws_frame = {
-			.payload = (uint8_t*)data;
-			.len = strlen(data);
-			.type = HTTPD_WS_TYPE_TEXT;
-		};
-			
-		httpd_ws_send_frame_asynce(hd, fd, ws_frame);
 
-}
+
+
 
 httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
@@ -243,43 +275,42 @@ httpd_handle_t Httpserver::init(){
 		httpd_uri_t root_s = {
 		    .uri = "/",
 		    .method = HTTP_GET,
-		    .handler = handlers::root,
+		    .handler = Handlers::root,
 		    .user_ctx = NULL
 		};
 		httpd_uri_t css_s = {
 		    .uri = "/style.css",
 		    .method = HTTP_GET,
-		    .handler = handlers::css,
+		    .handler = Handlers::css,
 		    .user_ctx = NULL
 		};
 
 		httpd_uri_t js_s = {
 		    .uri = "/graph.js",
 		    .method = HTTP_GET,
-		    .handler = handlers::js,
+		    .handler = Handlers::js,
 		    .user_ctx = NULL
 		};
 	
 		httpd_uri_t sensor_data_s = {
 		    .uri = "/sensor",
 		    .method = HTTP_GET,
-		    .handler = handlers::sensor_data,
+		    .handler = Handlers::sensor_data,
 		    .user_ctx = NULL
 		};
 		httpd_uri_t ws_s = {
 		    .uri = "/ws",
 		    .method = HTTP_GET,
-		    .handler = handlers::websock,
+		    .handler = Handlers::websock,
 		    .user_ctx = NULL,
-		    is_websocket = true,
-		    //ws_pre_handshake_cb = ws_auth_handler
+		    .is_websocket = true
 		};
-	
+
 		register_route(&root_s);
 		register_route(&css_s);
 		register_route(&js_s);
 		register_route(&sensor_data_s);
-		register_route(&wb_s);
+		register_route(&ws_s);
 		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");

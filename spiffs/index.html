@@ -9,8 +9,30 @@
 <body>
     <h1>ESP32 Breathalyzer</h1>
     <p>Real-time BAC readings from MQ-3 ethanol sensor.</p>
-    <canvas id="graph" width="600" height="300"></canvas>
     <div id="reading">BAC: --</div>
+    <canvas id="graph" width="700" height="350"></canvas>
+    <div id="controls">
+        <button id="pauseBtn" onclick="togglePause()">Pause</button>
+        <button id="tareBtn" onclick="tarePeak()">Reset Peak</button>
+    </div>
+    <div id="stats">
+        <div class="stat-box">
+            <div class="stat-label">Raw ADC</div>
+            <div class="stat-value" id="raw">--</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Voltage</div>
+            <div class="stat-value" id="mv">-- mV</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Peak BAC</div>
+            <div class="stat-value" id="peak">--</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="status">Connecting...</div>
+        </div>
+    </div>
     <script src="/graph.js"></script>
 </body>
 </html>

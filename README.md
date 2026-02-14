@@ -4,7 +4,7 @@ A real-time blood alcohol content (BAC) estimation tool built on the ESP32 micro
 
 ## Demo
 
-![Breathalyzer demo](demo_esp.gif)
+![Breathalyzer demo](demo_esp2.gif)
 
 
 ## Hardware

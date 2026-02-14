@@ -10,8 +10,11 @@ struct ws_resp_arg {
 
 static void wifi_event_cb(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data) {
-    WifiService *svc = (WifiService *)arg;
+   // [wifi] callback function to keep our wifi connected
+   // attempts reconnection if event_id is is status: disconnected, quits after a few attempts
 
+	WifiService *svc = (WifiService *)arg;
+	
     if (event_id == WIFI_EVENT_STA_START) {
         ESP_LOGI(TAG, "WiFi started, connecting...");
         esp_wifi_connect();
@@ -29,7 +32,10 @@ static void wifi_event_cb(void *arg, esp_event_base_t event_base,
 
 static void ip_event_cb(void *arg, esp_event_base_t event_base,
                         int32_t event_id, void *event_data) {
-    WifiService *svc = (WifiService *)arg;
+    // [IP] callback function to keep our ip constant 
+   // more for checking, does not retry like wifi. 
+  
+	WifiService *svc = (WifiService *)arg;
 
     if (event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
@@ -40,6 +46,12 @@ static void ip_event_cb(void *arg, esp_event_base_t event_base,
 }
 
 esp_err_t WifiService::init(){
+    
+     // must first initialize our non-volative storage on our esp32
+     // must of this function block include error checking and inits of 
+     // different components for our http server, wifi must be started before anything
+     // (runs async)
+   	 
      auto ret = nvs_flash_init();
      if (ret != ESP_OK){
 		ESP_ERROR_CHECK(nvs_flash_erase());
@@ -82,6 +94,8 @@ esp_err_t WifiService::init(){
 
 
 esp_err_t WifiService::connect(){
+   // connecting to local wifi, credentials are stored in our macros 
+    
     wifi_config_t wifi_config{};
 
     strncpy((char*)wifi_config.sta.ssid, CONFIG_WIFI_NAME, sizeof(wifi_config.sta.ssid));
@@ -149,6 +163,12 @@ WifiService::~WifiService(){
 adc_oneshot_unit_handle_t adc1_handle;
 
 bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle){
+	
+	// our current hardware esp32 devkitC does not support curve fitting enabled, so default to 
+	// line fitting calibrating our adc sensor for the mq-3.
+	// ADC_BITWIDTH_DEFAULT ensures we can have the full range of voltage 0V to 3.3V in a tradeoff
+	// for accuracy
+	
 	adc_cali_handle_t handle = NULL;
     	esp_err_t ret = ESP_FAIL;
     	bool calibrated = false;
@@ -181,6 +201,10 @@ bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t 
 
 
 void Handlers::ws_async_send(void* arg){
+	
+		// creating our http frame instance copying our struct full of socket
+		// stuff into the frame for sending, delete because we allocated on heap.
+		
 		auto *resp_arg = (ws_resp_arg *)arg;
 		httpd_ws_frame_t ws_frame{};
 
@@ -194,7 +218,9 @@ void Handlers::ws_async_send(void* arg){
 
 
 esp_err_t Handlers::root(httpd_req_t *req) {
-    std::ifstream file("/spiffs/index.html");
+   	// send html, spiffs dir allows us to encode html,css, and js in binary inside storage.bin 
+
+	std::ifstream file("/spiffs/index.html");
    	auto name = "[HTML]";
 	ESP_LOGI(name, "html sent");
     if (!file.is_open()) {
@@ -208,8 +234,10 @@ esp_err_t Handlers::root(httpd_req_t *req) {
 }
 
 esp_err_t Handlers::css(httpd_req_t *req) {
-    std::ifstream file("/spiffs/style.css");
-    auto name= "[CSS]";
+	// send css   	
+
+	std::ifstream file("/spiffs/style.css");
+    	auto name= "[CSS]";
 	ESP_LOGI(name, "css sent");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open css file");
@@ -223,7 +251,9 @@ esp_err_t Handlers::css(httpd_req_t *req) {
 
 
 esp_err_t Handlers::js(httpd_req_t *req) {
-    std::ifstream file("/spiffs/graph.js");
+    // send javascript, we need js for creation of our realtime graph on the frontend 
+
+	std::ifstream file("/spiffs/graph.js");
     auto name = "[JavaScript]";
 	ESP_LOGI(name, "javascript sent");
     if (!file.is_open()) {
@@ -237,11 +267,17 @@ esp_err_t Handlers::js(httpd_req_t *req) {
 }
 
 esp_err_t Handlers::websock(httpd_req_t *req){
-   	auto ws_tag = "[WEB SOCKET]"; 
+	// send calculated BAC levels into client socket in order to not make a million
+	// request, this is faster too. here we ensure connection and a handshake between
+	// client and server. send data as json
+	
+	auto ws_tag = "[WEB SOCKET]"; 
 	if (req->method == HTTP_GET) {
         ESP_LOGI(ws_tag, "WebSocket client connected");
         return ESP_OK;
     }
+	// call to receive our empty frame from the client in order to clear buffer
+	// allowing for response of analog signals
 	httpd_ws_frame_t pkt{};
 	pkt.type = HTTPD_WS_TYPE_TEXT;
 	esp_err_t intial_read = httpd_ws_recv_frame(req, &pkt, 0);
@@ -271,6 +307,10 @@ httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
 		ESP_LOGI(TAG, "HTTP server started");
 
+		// all the uris for added components of the server
+		// each one call its respective handler in which is invoked once there 
+		// is an existing connection with the client
+	
 		httpd_uri_t root_s{};
 		root_s.uri = "/";
 		root_s.method = HTTP_GET;
@@ -333,7 +373,10 @@ extern "C" void app_main(void){
 	cfg.partition_label = NULL;
 	cfg.max_files = 5;
 	cfg.format_if_mount_failed = true;
- 
+	
+	// our paritions.csv labels the use of the esp32 flash memory for different parts
+	// of the system. we had to allocate an extra 0.75 mb for the factory.
+	
 	esp_err_t ret = esp_vfs_spiffs_register(&cfg);
 	
 	if (ret != ESP_OK) {
@@ -359,7 +402,9 @@ extern "C" void app_main(void){
 	adc_oneshot_unit_init_cfg_t init_cfg{};
 	init_cfg.unit_id = ADC_UNIT_1;
 	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_cfg, &adc1_handle));
-
+	
+	// ADC_CHANNEL_0 corresponds to GPIO36 pin on esp32 devkit C which is the one labeled VP
+	
 	adc_oneshot_chan_cfg_t adc_cfg{};
 	adc_cfg.atten = ADC_ATTEN_DB_12;
 	adc_cfg.bitwidth = ADC_BITWIDTH_DEFAULT;

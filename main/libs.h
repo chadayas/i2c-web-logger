@@ -22,7 +22,7 @@
 #include "esp_adc/adc_cali_scheme.h"
 
 
-#define TAG "project"
+#define TAG "[PROJECT]"
 
 #define WIFI_AUTHMODE WIFI_AUTH_WPA2_PSK
 

@@ -84,22 +84,26 @@ function drawGraph() {
     }
 }
 
-function fetchSensor() {
-    fetch("/sensor")
-        .then(function(res) { return res.json(); })
-        .then(function(obj) {
-            data.push(obj.bac);
-            if (data.length > maxPoints) {
-                data.shift();
-            }
-            readingEl.textContent = "BAC: " + obj.bac.toFixed(4);
-            drawGraph();
-        })
-        .catch(function(err) {
-            console.log("Sensor fetch error:", err);
-        });
-}
+const ws = new WebSocket("ws://" + window.location.host + "/ws");
 
-// poll every second
-setInterval(fetchSensor, 1000);
+ws.onopen = function() {
+    console.log("WebSocket connected");
+    // request data every 500ms
+    setInterval(function() { ws.send("read"); }, 500);
+};
+
+ws.onmessage = function(event) {
+    var obj = JSON.parse(event.data);
+    data.push(obj.bac);
+    if (data.length > maxPoints) {
+        data.shift();
+    }
+    readingEl.textContent = "BAC: " + obj.bac.toFixed(4);
+    drawGraph();
+};
+
+ws.onclose = function() {
+    console.log("WebSocket disconnected");
+};
+
 drawGraph();

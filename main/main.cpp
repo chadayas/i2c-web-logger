@@ -152,14 +152,15 @@ bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t 
 	adc_cali_handle_t handle = NULL;
     	esp_err_t ret = ESP_FAIL;
     	bool calibrated = false;
-	
+	auto calib_tag = "[CALIBRATION]";	
 	if (!calibrated) {
-		ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
-		adc_cali_line_fitting_config_t cali_config = {
-			.unit_id = unit,
-			.atten = atten,
-			.bitwidth = ADC_BITWIDTH_DEFAULT,
-		};
+		ESP_LOGI(calib_tag, "calibration scheme version is %s", "Line Fitting");
+		
+		adc_cali_line_fitting_config_t cali_config{};
+		cali_config.unit_id = unit;
+		cali_config.atten = atten;
+		cali_config.bitwidth = ADC_BITWIDTH_DEFAULT; 
+
 		ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
 		if (ret == ESP_OK) {
 			calibrated = true;
@@ -168,11 +169,11 @@ bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t 
 
 	*out_handle = handle;
 	if (ret == ESP_OK) {
-		ESP_LOGI(TAG, "Calibration Success");
+		ESP_LOGI(calib_tag, "Calibration Success");
 	} else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
-		ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
+		ESP_LOGW(calib_tag, "eFuse not burnt, skip software calibration");
 	} else {
-		ESP_LOGE(TAG, "Invalid arg or no memory");
+		ESP_LOGE(calib_tag, "Invalid arg or no memory");
 	}
 
 	return calibrated;
@@ -194,6 +195,8 @@ void Handlers::ws_async_send(void* arg){
 
 esp_err_t Handlers::root(httpd_req_t *req) {
     std::ifstream file("/spiffs/index.html");
+   	auto name = "[HTML]";
+	ESP_LOGI(name, "html sent");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open HTML file");
         return ESP_FAIL;
@@ -206,6 +209,8 @@ esp_err_t Handlers::root(httpd_req_t *req) {
 
 esp_err_t Handlers::css(httpd_req_t *req) {
     std::ifstream file("/spiffs/style.css");
+    auto name= "[CSS]";
+	ESP_LOGI(name, "css sent");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open css file");
         return ESP_FAIL;
@@ -219,6 +224,8 @@ esp_err_t Handlers::css(httpd_req_t *req) {
 
 esp_err_t Handlers::js(httpd_req_t *req) {
     std::ifstream file("/spiffs/graph.js");
+    auto name = "[JavaScript]";
+	ESP_LOGI(name, "javascript sent");
     if (!file.is_open()) {
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to open javascript file");
         return ESP_FAIL;
@@ -230,8 +237,9 @@ esp_err_t Handlers::js(httpd_req_t *req) {
 }
 
 esp_err_t Handlers::websock(httpd_req_t *req){
-    if (req->method == HTTP_GET) {
-        ESP_LOGI(TAG, "WebSocket client connected");
+   	auto ws_tag = "[WEB SOCKET]"; 
+	if (req->method == HTTP_GET) {
+        ESP_LOGI(ws_tag, "WebSocket client connected");
         return ESP_OK;
     }
 
@@ -240,6 +248,8 @@ esp_err_t Handlers::websock(httpd_req_t *req){
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
     float voltage = adc_raw * (3.3f / 4095.0f);
     float bac = voltage / 33.0f;
+    auto debug = "[##### DEBUG ######]";
+    ESP_LOGI(debug, "ADC raw: %d, voltage: %.0f mV, BAC: %.4f", adc_raw, voltage * 1000, bac);
 
     auto *resp_arg = new ws_resp_arg;
     resp_arg->hd = req->handle;
@@ -249,68 +259,36 @@ esp_err_t Handlers::websock(httpd_req_t *req){
     return httpd_queue_work(req->handle, Handlers::ws_async_send, resp_arg);
 }
 
-esp_err_t Handlers::sensor_data(httpd_req_t *req) {
-    int adc_raw = 0;
-    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
-
-    // convert raw ADC to voltage (mV), then to rough BAC estimate
-    float voltage = adc_raw * (3.3f / 4095.0f);
-    // TODO: calibrate with real MQ-3 data sheet curve
-    float bac = voltage / 33.0f;
-
-    char json[64];
-    snprintf(json, sizeof(json), "{\"bac\": %.4f, \"raw\": %d, \"mv\": %.0f}", bac, adc_raw, voltage * 1000);
-    httpd_resp_set_type(req, "application/json");
-    return httpd_resp_send(req, json, strlen(json));
-}
-
-
-
-
-
 httpd_handle_t Httpserver::init(){
 	if (httpd_start(&svr, &cfg) == ESP_OK){
 		ESP_LOGI(TAG, "HTTP server started");
 
-		httpd_uri_t root_s = {
-		    .uri = "/",
-		    .method = HTTP_GET,
-		    .handler = Handlers::root,
-		    .user_ctx = NULL
-		};
-		httpd_uri_t css_s = {
-		    .uri = "/style.css",
-		    .method = HTTP_GET,
-		    .handler = Handlers::css,
-		    .user_ctx = NULL
-		};
+		httpd_uri_t root_s{};
+		root_s.uri = "/";
+		root_s.method = HTTP_GET;
+		root_s.handler = Handlers::root;
 
-		httpd_uri_t js_s = {
-		    .uri = "/graph.js",
-		    .method = HTTP_GET,
-		    .handler = Handlers::js,
-		    .user_ctx = NULL
-		};
-	
-		httpd_uri_t sensor_data_s = {
-		    .uri = "/sensor",
-		    .method = HTTP_GET,
-		    .handler = Handlers::sensor_data,
-		    .user_ctx = NULL
-		};
-		httpd_uri_t ws_s = {
-		    .uri = "/ws",
-		    .method = HTTP_GET,
-		    .handler = Handlers::websock,
-		    .user_ctx = NULL,
-		    .is_websocket = true
-		};
+		httpd_uri_t css_s{};
+		css_s.uri = "/style.css";
+		css_s.method = HTTP_GET;
+		css_s.handler = Handlers::css;
+
+		httpd_uri_t js_s{};
+		js_s.uri = "/graph.js";
+		js_s.method = HTTP_GET;
+		js_s.handler = Handlers::js;
+
+		httpd_uri_t ws_s{};
+		ws_s.uri = "/ws";
+		ws_s.method = HTTP_GET;
+		ws_s.handler = Handlers::websock;
+		ws_s.is_websocket = true;
 
 		register_route(&root_s);
 		register_route(&css_s);
 		register_route(&js_s);
-		register_route(&sensor_data_s);
 		register_route(&ws_s);
+
 		return svr;
 	} else{
 		ESP_LOGE(TAG, "Unable to start server");
@@ -342,12 +320,11 @@ extern "C" void app_main(void){
 
 	ESP_LOGI(TAG, "Initializing SPIFFS");
 
-	esp_vfs_spiffs_conf_t cfg = {
-  		.base_path = "/spiffs",
-  		.partition_label = NULL,
-  		.max_files = 5,
-  		.format_if_mount_failed = true
-		};
+	esp_vfs_spiffs_conf_t cfg{};
+	cfg.base_path = "/spiffs";
+	cfg.partition_label = NULL;
+	cfg.max_files = 5;
+	cfg.format_if_mount_failed = true;
  
 	esp_err_t ret = esp_vfs_spiffs_register(&cfg);
 	
@@ -371,20 +348,18 @@ extern "C" void app_main(void){
          ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
      }
 
-     	adc_oneshot_unit_init_cfg_t init_cfg = {
-       		 .unit_id = ADC_UNIT_1,
-    	};
+	adc_oneshot_unit_init_cfg_t init_cfg{};
+	init_cfg.unit_id = ADC_UNIT_1;
 	ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_cfg, &adc1_handle));
 
-    	adc_oneshot_chan_cfg_t adc_cfg = {
-       		 .atten = ADC_ATTEN_DB_12,
-        	.bitwidth = ADC_BITWIDTH_DEFAULT,
-    	};
+	adc_oneshot_chan_cfg_t adc_cfg{};
+	adc_cfg.atten = ADC_ATTEN_DB_12;
+	adc_cfg.bitwidth = ADC_BITWIDTH_DEFAULT;
     	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_0, &adc_cfg));
 
     	adc_cali_handle_t adc1_cali_chan0_handle = NULL;
     	
-	bool do_calibration1_chan0 = adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
+	adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12, &adc1_cali_chan0_handle);
 
      	Httpserver server;
 	     

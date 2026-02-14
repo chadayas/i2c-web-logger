@@ -117,9 +117,20 @@ function drawGraph() {
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    // glow effect on line
-    ctx.shadowColor = "#00d4ff";
-    ctx.shadowBlur = 10;
+    // fake glow - thick transparent line behind the real one
+    ctx.strokeStyle = "rgba(0, 212, 255, 0.15)";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    for (var i = 0; i < data.length; i++) {
+        var x = padding + (i / (maxPoints - 1)) * graphW;
+        var y = h - padding - (data[i] / 0.40) * graphH;
+        if (y < padding) y = padding;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // main line
     ctx.strokeStyle = "#00d4ff";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -127,29 +138,21 @@ function drawGraph() {
         var x = padding + (i / (maxPoints - 1)) * graphW;
         var y = h - padding - (data[i] / 0.40) * graphH;
         if (y < padding) y = padding;
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // dots at each point
-    for (var i = 0; i < data.length; i++) {
+    // dots - only every 5th point to reduce draw calls
+    ctx.fillStyle = "#00d4ff";
+    for (var i = 0; i < data.length; i += 5) {
         var x = padding + (i / (maxPoints - 1)) * graphW;
         var y = h - padding - (data[i] / 0.40) * graphH;
         if (y < padding) y = padding;
-
-        ctx.fillStyle = "#00d4ff";
-        ctx.shadowColor = "#00d4ff";
-        ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(x, y, 2.5, 0, Math.PI * 2);
         ctx.fill();
     }
-    ctx.shadowBlur = 0;
 
     // latest point highlight
     var lx = padding + ((data.length - 1) / (maxPoints - 1)) * graphW;
@@ -157,12 +160,9 @@ function drawGraph() {
     if (ly < padding) ly = padding;
 
     ctx.fillStyle = "#fff";
-    ctx.shadowColor = "#00d4ff";
-    ctx.shadowBlur = 12;
     ctx.beginPath();
     ctx.arc(lx, ly, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
 }
 
 var ws = new WebSocket("ws://" + window.location.host + "/ws");

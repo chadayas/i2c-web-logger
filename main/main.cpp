@@ -242,14 +242,22 @@ esp_err_t Handlers::websock(httpd_req_t *req){
         ESP_LOGI(ws_tag, "WebSocket client connected");
         return ESP_OK;
     }
-
-    // read sensor and send to client
+	httpd_ws_frame_t pkt{};
+	pkt.type = HTTPD_WS_TYPE_TEXT;
+	esp_err_t intial_read = httpd_ws_recv_frame(req, &pkt, 0);
+	
+	if(pkt.len){
+		uint8_t *buf = new uint8_t[pkt.len + 1]();
+		pkt.payload = buf;
+		httpd_ws_recv_frame(req, &pkt, pkt.len);
+		delete[] buf;	
+	}
+   	
+	// read sensor and send to client
     int adc_raw = 0;
     ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC_CHANNEL_0, &adc_raw));
     float voltage = adc_raw * (3.3f / 4095.0f);
     float bac = voltage / 33.0f;
-    auto debug = "[##### DEBUG ######]";
-    ESP_LOGI(debug, "ADC raw: %d, voltage: %.0f mV, BAC: %.4f", adc_raw, voltage * 1000, bac);
 
     auto *resp_arg = new ws_resp_arg;
     resp_arg->hd = req->handle;
